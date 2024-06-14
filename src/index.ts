@@ -1,42 +1,55 @@
-import {Context, LambdaFunctionURLEvent, APIGatewayProxyResultV2} from 'aws-lambda';
-import {DiscordResponse} from './discord';
-const PUBLIC_KEY = "9c9d12ea9dcfade61884ccb26c830f147c0538142e6a98ab5f63e327a4f12199";
-const nacl = require("tweetnacl");
+import {LambdaFunctionURLEvent, APIGatewayProxyResultV2} from 'aws-lambda';
+import * as interactions from 'discord-interactions';
 
-function verifySignature(publicKey: string, signature: string, timestamp: string, body: string) {
-    return nacl.sign.detached.verify(
-        Buffer.from(timestamp + body),
-        Buffer.from(signature, "hex"),
-        Buffer.from(publicKey, "hex")
-    );
-}
+import {DiscordResponse, verifyDiscordRequest} from './discord';
+import {FEEDME} from '../hungrycatbuilder/commands';
 
-export const handler = async (event: LambdaFunctionURLEvent, context: Context): Promise<APIGatewayProxyResultV2> => {
+export const handler = async (event: LambdaFunctionURLEvent): Promise<APIGatewayProxyResultV2> => {
+  if (!event.body) return {statusCode: 400, body: 'No body'};
+  if (!event.headers) return {statusCode: 400, body: 'No headers'};
 
-    if (!event.body) return {statusCode: 400, body: "No body"};
-    if (!event.headers) return {statusCode: 400, body: "No headers"};
-    let discordResponse = JSON.parse(event.body) as DiscordResponse;
+  const discordResponse = JSON.parse(event.body) as DiscordResponse;
+  console.log(discordResponse);
 
-    if (discordResponse.type === 1) {
+  // verify if discord sent this - if not, exit.
+  const isVerified = verifyDiscordRequest(event);
+  if (!isVerified) {
+    console.log('Invalid request signature');
+    return {statusCode: 401, body: 'Invalid request signature'};
+  }
 
-        const signature: string = event.headers["x-signature-ed25519"] as string;
-        const timestamp = event.headers["x-signature-timestamp"] as string;
-        const body = event.body;
-        const isVerified = verifySignature(PUBLIC_KEY, signature, timestamp, body);
-        if (!isVerified) {
-            console.log("Invalid request signature");
-            return {statusCode: 401, body: "Invalid request signature"};
+  // ack and send back a ping response
+  if (discordResponse.type === interactions.InteractionType.PING) {
+    return {
+      statusCode: 200,
+      body: JSON.stringify({type: interactions.InteractionResponseType.PONG}),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
+  }
 
-        }
-        console.log("Valid request signature");
-        return {
-            statusCode: 200,
-            body: JSON.stringify({type: 1}),
-            headers: {
-                "Content-Type": "application/json",
-            }
-        };
+  if (discordResponse.type === interactions.InteractionType.APPLICATION_COMMAND) {
+    if (discordResponse.data?.name === FEEDME.name) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          type: interactions.InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            content: 'What does catto want?',
+          },
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      };
     }
-    return {statusCode: 400, body: "Something went wrong"};
-};
+  }
 
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+};

@@ -16,14 +16,16 @@ export class HungrycatStack extends cdk.Stack {
       entry: 'src/index.ts',
       bundling: {
         banner: "import { createRequire } from 'module';const require = createRequire(import.meta.url);",
-        format: OutputFormat.ESM
-      }
+        format: OutputFormat.ESM,
+      },
     });
     const hungryCatFunctionUrl = hungryCatFunction.addFunctionUrl({
       authType: FunctionUrlAuthType.NONE,
-      cors: {allowedOrigins: ['*']}
+      cors: {allowedOrigins: ['*']},
     });
     new cdk.CfnOutput(this, 'FunctionUrl', {value: hungryCatFunctionUrl.url});
-    new cdk.CfnOutput(this, 'FunctionArn', {value: hungryCatFunction.functionArn});
+    new cdk.CfnOutput(this, 'FunctionArn', {
+      value: hungryCatFunction.functionArn,
+    });
   }
 }

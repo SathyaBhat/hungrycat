@@ -1,0 +1,3 @@
+# Ignore artifacts:
+cdk.out
+node_modules

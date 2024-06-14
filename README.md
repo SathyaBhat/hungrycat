@@ -1,6 +1,6 @@
 # Hungry Cat.
 
-The cat is hungry. Discord bot will feed it.
+The cat is hungry. This Discord bot will provide suggestions on what to feed the hungry cat.
 
 ### Getting started
 
